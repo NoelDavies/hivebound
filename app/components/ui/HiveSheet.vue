@@ -2,6 +2,7 @@
 import { MAX_WORKERS, type ColonyBee, useColony, workCell } from '~/stores/colony'
 import { useGame } from '~/stores/game'
 import { useHive } from '~/stores/hive'
+import { useSettings } from '~/stores/settings'
 import { ALL_RESOURCES, type Amounts, BUILDINGS, RAW_RESOURCES, RESOURCE_INFO, type RawResource, UPGRADES, UPGRADE_LIST } from '~/utils/resources'
 import { SPECIES } from '~/utils/species'
 import type { PickerOption } from './UiPicker.vue'
@@ -14,6 +15,7 @@ import type { PickerOption } from './UiPicker.vue'
 const game = useGame()
 const hive = useHive()
 const colony = useColony()
+const settings = useSettings()
 const sheet = computed(() => game.hiveSheet)
 const panel = ref<HTMLElement>()
 
@@ -111,7 +113,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey, true))
       <div class="body">
         <!-- Colony -->
         <template v-if="sheet === 'colony'">
-          <p v-if="!colony.hasRoom" class="note">
+          <p v-if="colony.atBeeLimit" class="note">
+            You've reached your bee limit of {{ settings.maxBees }}. You can raise it in Settings.
+          </p>
+          <p v-else-if="!colony.hasRoom && colony.roomCapacity < settings.maxBees" class="note">
             Build a Bee Room for more beds.
           </p>
           <p v-if="!colony.bees.length" class="blurb">

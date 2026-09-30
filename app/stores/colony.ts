@@ -7,7 +7,7 @@ import { SPECIES, SPECIES_BY_HABITAT, type SpeciesId, pickName } from '~/utils/s
 import { HOME, type Tile, WORLD_SEED, useWorldData } from '~/utils/world'
 import { useGame } from './game'
 import { useHive } from './hive'
-import { useSettings } from './settings'
+import { MAX_BEES_LIMIT, useSettings } from './settings'
 import { isNight } from '~/utils/daylight'
 
 /*
@@ -21,9 +21,8 @@ const ENCOUNTER_WINDOW_MS = 8 * 60 * 1000
 const WILD_RATE = 0.05
 /** Helper bees only fly to tiles this close to the hive. */
 const GATHER_RANGE = 10
-/** Rooms for helpers before any Bee Room is built, and the most the hive can ever hold. */
+/** Rooms for helpers before any Bee Room is built. */
 const BASE_HOUSING = 2
-export const MAX_COLONY = 20
 const DANCE_TRIES = 3
 /** A little rest at home between trips (they potter about the hive meanwhile). */
 const REST_BETWEEN_TRIPS_MS = 8000
@@ -105,10 +104,20 @@ export const useColony = defineStore('colony', {
   }),
 
   getters: {
-    capacity(): number {
+    /** Beds the Bee Rooms provide, before the player's limit is applied. */
+    roomCapacity(): number {
       const hive = useHive()
       const rooms = Object.values(hive.cells).filter(c => c.building === 'room').length
-      return Math.min(MAX_COLONY, BASE_HOUSING + rooms * (BUILDINGS.room.housing ?? 0))
+      return BASE_HOUSING + rooms * (BUILDINGS.room.housing ?? 0)
+    },
+    /** The player's limit is a ceiling on Bee Room growth; it never drops below the starting beds. */
+    capacity(): number {
+      return Math.max(BASE_HOUSING, Math.min(useSettings().maxBees, this.roomCapacity))
+    },
+    /** True when the bee limit, not the Bee Rooms, is what stops the colony growing. */
+    atBeeLimit(): boolean {
+      const max = useSettings().maxBees
+      return max < MAX_BEES_LIMIT && this.roomCapacity >= max && this.bees.length >= max
     },
     hasRoom(): boolean {
       return this.bees.length < this.capacity
@@ -177,9 +186,12 @@ export const useColony = defineStore('colony', {
       const species = this.wildBeeAt(tile)
       if (!species || this.dance) return false
       if (!this.hasRoom) {
-        const msg = this.capacity >= MAX_COLONY
-          ? 'The hive is as full as it can be. What a big family!'
-          : 'There is no room at home yet. Build a Bee Room in the hive first.'
+        const limit = useSettings().maxBees
+        const msg = this.roomCapacity < limit
+          ? 'There is no room at home yet. Build a Bee Room in the hive first.'
+          : limit >= MAX_BEES_LIMIT
+            ? 'The hive is as full as it can be. What a big family!'
+            : `You've reached your bee limit of ${limit}. You can raise it in Settings.`
         game.toast(msg)
         game.announce(msg)
         return false

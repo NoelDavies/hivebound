@@ -22,6 +22,10 @@ export interface SettingsState {
   /** Slower marker and a wider green arc in the befriending dance. */
   easyBefriend: boolean
   dayNight: boolean
+  /** Most helper bees the colony will take in (Bee Rooms still gate growth). */
+  maxBees: number
+  /** The one-time performance heads-up has been seen. */
+  beeLimitAcknowledged: boolean
 }
 
 const STORAGE_KEY = 'hivebound:settings:v1'
@@ -43,6 +47,15 @@ function systemIsTouch() {
 
 export const ZOOM_MIN = 0.6
 export const ZOOM_MAX = 1.7
+export const MIN_BEES = 2
+export const MAX_BEES_LIMIT = 50
+export const RECOMMENDED_BEES = 20
+
+function clampBees(n: unknown) {
+  const v = typeof n === 'number' ? n : Number.NaN
+  if (!Number.isFinite(v)) return RECOMMENDED_BEES
+  return Math.min(MAX_BEES_LIMIT, Math.max(MIN_BEES, Math.round(v)))
+}
 
 export const useSettings = defineStore('settings', {
   state: (): SettingsState => ({
@@ -62,6 +75,8 @@ export const useSettings = defineStore('settings', {
     easyBefriend: false,
     /** Slow day and night cycle (off = always day). */
     dayNight: true,
+    maxBees: RECOMMENDED_BEES,
+    beeLimitAcknowledged: false,
   }),
   getters: {
     /** Seconds to fly one hex. */
@@ -80,6 +95,7 @@ export const useSettings = defineStore('settings', {
         if (data.hopSpeed && !data.flightSpeed) data.flightSpeed = data.hopSpeed
         delete data.hopSpeed
         this.$patch(data)
+        this.maxBees = clampBees(this.maxBees)
       }
       catch { /* storage unavailable: keep defaults */ }
     },
@@ -91,6 +107,9 @@ export const useSettings = defineStore('settings', {
     },
     setZoom(z: number) {
       this.zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z))
+    },
+    setMaxBees(n: number) {
+      this.maxBees = clampBees(n)
     },
     reset() {
       this.$reset()
