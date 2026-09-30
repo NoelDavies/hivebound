@@ -3,6 +3,7 @@ import { MAX_WORKERS, type ColonyBee, useColony, workCell } from '~/stores/colon
 import { useGame } from '~/stores/game'
 import { useHive } from '~/stores/hive'
 import { ALL_RESOURCES, type Amounts, BUILDINGS, RAW_RESOURCES, RESOURCE_INFO, type RawResource, UPGRADES, UPGRADE_LIST } from '~/utils/resources'
+import { useSettings } from '~/stores/settings'
 import { SPECIES } from '~/utils/species'
 import type { PickerOption } from './UiPicker.vue'
 
@@ -13,6 +14,7 @@ import type { PickerOption } from './UiPicker.vue'
  */
 const game = useGame()
 const hive = useHive()
+const settings = useSettings()
 const colony = useColony()
 const sheet = computed(() => game.hiveSheet)
 const panel = ref<HTMLElement>()
@@ -51,6 +53,18 @@ function workOptions(bee: ColonyBee): PickerOption[] {
   }))
 }
 
+/* ---------------- dismissing ---------------- */
+const dismissing = ref<ColonyBee | null>(null)
+// Kept after the dialog closes so its text doesn't blank out mid-fade.
+const dismissName = ref('')
+watch(dismissing, b => b && (dismissName.value = b.name))
+const onlyBee = computed(() => colony.bees.length <= 1)
+function confirmDismiss() {
+  if (dismissing.value) colony.dismiss(dismissing.value.id)
+  dismissing.value = null
+  nextTick(() => panel.value?.focus())
+}
+
 /* ---------------- upgrades ---------------- */
 const costList = (a: Amounts) => ALL_RESOURCES.filter(r => a[r]).map(r => ({ r, n: a[r]!, ok: hive.stock[r] >= a[r]! }))
 
@@ -71,9 +85,10 @@ watch(() => game.hiveSheet, (v) => {
 })
 watch(() => game.buildMenuOpen, v => v && (game.hiveSheet = null))
 watch(() => game.scene, s => s !== 'hive' && (game.hiveSheet = null))
+watch(() => game.hiveSheet, () => (dismissing.value = null))
 
 function onKey(e: KeyboardEvent) {
-  if (game.scene !== 'hive' || game.transition || game.journalOpen || game.settingsOpen || e.repeat) return
+  if (game.scene !== 'hive' || dismissing.value || game.transition || game.journalOpen || game.settingsOpen || e.repeat) return
   const target = e.target as HTMLElement | null
   // Typing, or a dropdown list with the keys: leave them be.
   if (target?.closest('input, textarea, [contenteditable], .picker-list')) return
@@ -117,11 +132,23 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey, true))
           <p v-if="!colony.bees.length" class="blurb">
             No helpers yet. Wild bees hover over meadows, flower patches, water and woods: fly onto one and press <span class="kbd">F</span> to try the befriending dance. There's always a friendly Bumble at the Wild Nest.
           </p>
+          <p v-if="onlyBee" id="only-bee-note" class="note">
+            You need at least one bee at home.
+          </p>
           <ul class="colony">
             <li v-for="b in colony.bees" :key="b.id" class="friend">
               <div class="friend-head">
                 <span class="swatch" :style="{ background: SPECIES[b.species].look.colors.body, borderColor: SPECIES[b.species].look.colors.stripe }" aria-hidden="true" />
                 <span class="who"><strong>{{ b.name }}</strong> <span class="species">{{ SPECIES[b.species].name }}</span></span>
+                <button
+                  class="chip-btn dismiss"
+                  :disabled="onlyBee"
+                  :aria-label="`Dismiss ${b.name}`"
+                  :aria-describedby="onlyBee ? 'only-bee-note' : undefined"
+                  @click="dismissing = b"
+                >
+                  Dismiss
+                </button>
               </div>
               <p class="status-line">
                 {{ (void now, colony.statusText(b, now)) }}
@@ -190,6 +217,23 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey, true))
       </p>
     </section>
   </Transition>
+
+  <UiDialog :open="!!dismissing" :title="`Dismiss ${dismissName}?`" @close="dismissing = null">
+    <p class="blurb">
+      Send {{ dismissName }} back to the meadow? You can find them near the hive and befriend them again.
+      <template v-if="dismissing && SPECIES[dismissing.species].nightOnly && settings.dayNight">
+        {{ SPECIES[dismissing.species].name }}s only come out at night.
+      </template>
+    </p>
+    <div class="confirm">
+      <button class="chip-btn" @click="dismissing = null">
+        Keep {{ dismissName }}
+      </button>
+      <button class="chip-btn primary" @click="confirmDismiss">
+        Dismiss
+      </button>
+    </div>
+  </UiDialog>
 </template>
 
 <style scoped>
@@ -270,6 +314,7 @@ h2 {
 }
 .friend-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
 }
@@ -279,6 +324,20 @@ h2 {
   border-radius: 7px;
   border: 3px solid;
   flex: none;
+}
+.dismiss {
+  margin-left: auto;
+  min-height: 44px;
+  box-shadow: none;
+}
+.confirm {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.confirm .chip-btn {
+  min-height: 44px;
 }
 .species {
   color: var(--ink-soft);
