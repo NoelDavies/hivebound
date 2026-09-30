@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { MAX_WORKERS, type ColonyBee, useColony, workCell } from '~/stores/colony'
+import { BEE_NAME_MAX, MAX_COLONY, MAX_WORKERS, type ColonyBee, useColony, workCell } from '~/stores/colony'
 import { useGame } from '~/stores/game'
 import { useHive } from '~/stores/hive'
 import { ALL_RESOURCES, type Amounts, BUILDINGS, RAW_RESOURCES, RESOURCE_INFO, type RawResource, UPGRADES, UPGRADE_LIST } from '~/utils/resources'
@@ -52,6 +52,30 @@ function workOptions(bee: ColonyBee): PickerOption[] {
     disabled: w.workers >= MAX_WORKERS && workCell(bee.job) !== w.key,
   }))
 }
+
+/* Renaming: tap the name, type, Enter (or tap away) to keep it, Esc to cancel. */
+const editingId = ref<number | null>(null)
+const draft = ref('')
+const nameInput = ref<HTMLInputElement[]>()
+function startRename(bee: ColonyBee) {
+  editingId.value = bee.id
+  draft.value = bee.name
+  nextTick(() => {
+    const el = nameInput.value?.[0]
+    el?.focus()
+    el?.select()
+  })
+}
+function saveName(bee: ColonyBee) {
+  if (editingId.value !== bee.id) return
+  colony.rename(bee.id, draft.value)
+  editingId.value = null
+}
+function cancelRename() {
+  editingId.value = null
+}
+
+watch(() => game.hiveSheet, () => (editingId.value = null))
 
 /* ---------------- dismissing ---------------- */
 const dismissing = ref<ColonyBee | null>(null)
@@ -127,7 +151,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey, true))
         <!-- Colony -->
         <template v-if="sheet === 'colony'">
           <p v-if="!colony.hasRoom" class="note">
-            Build a Bee Room for more beds.
+            {{ colony.capacity >= MAX_COLONY
+              ? 'Every bed is taken. To make room for a new friend, you can dismiss a helper: they fly back to the meadow nearby.'
+              : 'All beds are full. Build a Bee Room for more, or dismiss a helper back to the meadow.' }}
           </p>
           <p v-if="!colony.bees.length" class="blurb">
             No helpers yet. Wild bees hover over meadows, flower patches, water and woods: fly onto one and press <span class="kbd">F</span> to try the befriending dance. There's always a friendly Bumble at the Wild Nest.
@@ -139,7 +165,24 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey, true))
             <li v-for="b in colony.bees" :key="b.id" class="friend">
               <div class="friend-head">
                 <span class="swatch" :style="{ background: SPECIES[b.species].look.colors.body, borderColor: SPECIES[b.species].look.colors.stripe }" aria-hidden="true" />
-                <span class="who"><strong>{{ b.name }}</strong> <span class="species">{{ SPECIES[b.species].name }}</span></span>
+                <input
+                  v-if="editingId === b.id"
+                  ref="nameInput"
+                  v-model="draft"
+                  class="name-input"
+                  type="text"
+                  enterkeyhint="done"
+                  autocomplete="off"
+                  :maxlength="BEE_NAME_MAX"
+                  :aria-label="`New name for ${b.name}`"
+                  @keydown.enter.prevent="saveName(b)"
+                  @keydown.esc.stop.prevent="cancelRename"
+                  @blur="saveName(b)"
+                >
+                <button v-else class="who" :aria-label="`${b.name}, ${SPECIES[b.species].name}. Rename`" @click="startRename(b)">
+                  <strong>{{ b.name }}</strong> <span class="species">{{ SPECIES[b.species].name }}</span>
+                  <UiIcon name="pencil" class="pencil" />
+                </button>
                 <button
                   class="chip-btn dismiss"
                   :disabled="onlyBee"
@@ -324,6 +367,45 @@ h2 {
   border-radius: 7px;
   border: 3px solid;
   flex: none;
+}
+.who {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  min-width: 0;
+  flex: 1;
+  padding: 0 6px;
+  margin-left: -6px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: text;
+}
+.who:hover,
+.who:focus-visible {
+  background: var(--paper-2);
+}
+.pencil {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  color: var(--ink-soft);
+}
+.name-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 2px solid var(--honey-deep);
+  border-radius: 10px;
+  background: #fffdf6;
+  font: inherit;
+  font-weight: 700;
+  color: var(--ink);
 }
 .dismiss {
   margin-left: auto;
