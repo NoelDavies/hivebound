@@ -263,21 +263,14 @@ function lookAround() {
 }
 .jobs {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 4px 10px;
   margin: 4px 0 0;
   padding: 0;
-  /* Doesn't widen the card: it scrolls sideways when the chips don't fit. */
-  width: 0;
-  min-width: 100%;
   list-style: none;
   font-size: 0.85rem;
   font-weight: 700;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.jobs::-webkit-scrollbar {
-  display: none;
 }
 .jobs li {
   display: flex;
