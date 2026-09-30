@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { track } from '~/utils/analytics'
+import { cancelSave, saveSoon } from '~/utils/deferredSave'
 import { type Direction, type Hex, hexKey, hexesInRange, hexDistance, neighbor, parseKey } from '~/utils/hex'
 import {
   ALL_RESOURCES,
@@ -155,6 +156,7 @@ export const useHive = defineStore('hive', {
     },
 
     save() {
+      cancelSave(SAVE_KEY)
       const data: SaveData = {
         pouch: this.pouch,
         stock: this.stock,
@@ -419,7 +421,7 @@ export const useHive = defineStore('hive', {
           changed = true
         }
       }
-      if (changed) this.changed()
+      if (changed) this.changed(true)
       return changed
     },
 
@@ -532,9 +534,11 @@ export const useHive = defineStore('hive', {
       return true
     },
 
-    changed() {
+    /** `soft`: the game moved on by itself, so the save can wait a moment. */
+    changed(soft = false) {
       this.rev++
-      this.save()
+      if (soft) saveSoon(SAVE_KEY, () => this.save())
+      else this.save()
     },
   },
 })

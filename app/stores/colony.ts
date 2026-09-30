@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { track } from '~/utils/analytics'
+import { cancelSave, saveSoon } from '~/utils/deferredSave'
 import { type Hex, hexDistance, hexKey, parseKey } from '~/utils/hex'
 import { hash2 } from '~/utils/noise'
 import { BUILDINGS, OFFLINE_CAP_MS, RESOURCE_INFO, type RawResource, tileSource } from '~/utils/resources'
@@ -131,6 +132,7 @@ export const useColony = defineStore('colony', {
       this.tick()
     },
     save() {
+      cancelSave(SAVE_KEY)
       const data: SaveData = { bees: this.bees, used: this.used, nextId: this.nextId }
       try {
         localStorage.setItem(SAVE_KEY, JSON.stringify(data))
@@ -148,9 +150,11 @@ export const useColony = defineStore('colony', {
       this.dance = null
       this.rev++
     },
-    changed() {
+    /** `soft`: the game moved on by itself, so the save can wait a moment. */
+    changed(soft = false) {
       this.rev++
-      this.save()
+      if (soft) saveSoon(SAVE_KEY, () => this.save())
+      else this.save()
     },
 
     /* ---------------- wild bees ---------------- */
@@ -411,8 +415,8 @@ export const useColony = defineStore('colony', {
         changed = true
       }
       if (changed) {
-        useHive().changed()
-        this.changed()
+        useHive().changed(true)
+        this.changed(true)
       }
       return changed
     },
