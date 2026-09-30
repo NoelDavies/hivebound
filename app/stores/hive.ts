@@ -427,7 +427,10 @@ export const useHive = defineStore('hive', {
 
     /** Helpers at this building who are home (a bee finishing a trip joins when it lands). */
     workersHere(key: string) {
-      return useColony().workersAt(key).filter(b => !b.trip).length
+      const job = `cell:${key}`
+      let n = 0
+      for (const b of useColony().bees) if (b.job === job && !b.trip) n++
+      return n
     },
 
     /** How long one batch takes at this building right now. */
