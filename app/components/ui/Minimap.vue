@@ -11,13 +11,7 @@ const settings = useSettings()
 const world = useWorldData()
 
 const canvas = ref<HTMLCanvasElement>()
-const narrow = ref(false)
-onMounted(() => {
-  const mq = window.matchMedia('(max-width: 640px)')
-  narrow.value = mq.matches
-  mq.addEventListener('change', e => (narrow.value = e.matches))
-})
-const size = computed(() => (settings.largeMinimap ? (narrow.value ? 220 : 260) : narrow.value ? 112 : 156))
+const size = computed(() => (settings.largeMinimap ? 260 : 156))
 
 // Large map shows the whole island (and the land beyond the mist, once it lifts); small map
 // is a local view around the bee.
@@ -44,7 +38,8 @@ function draw() {
   if (!c) return
   const dpr = Math.min(2, window.devicePixelRatio || 1)
   const px = size.value
-  if (c.width !== px * dpr) {
+  // Check both sides: a fresh canvas is 300x150, so a 150px map at 2x would otherwise keep a 150px-tall buffer.
+  if (c.width !== px * dpr || c.height !== px * dpr) {
     c.width = px * dpr
     c.height = px * dpr
   }
@@ -242,8 +237,8 @@ canvas {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 40px;
-  min-width: 40px;
+  min-height: 44px;
+  min-width: 44px;
   justify-content: center;
   padding: 0 8px;
   border: none;
