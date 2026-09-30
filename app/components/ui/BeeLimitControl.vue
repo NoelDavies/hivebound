@@ -4,7 +4,7 @@ import { MAX_BEES_LIMIT, MIN_BEES, RECOMMENDED_BEES, useSettings } from '~/store
 const settings = useSettings()
 const id = useId()
 const high = computed(() => settings.maxBees > RECOMMENDED_BEES)
-const valueText = computed(() => `${settings.maxBees} bees${high.value ? ', above the recommended 20' : ''}`)
+const valueText = computed(() => `${settings.maxBees} bees${high.value ? `, above the recommended ${RECOMMENDED_BEES}` : ''}`)
 </script>
 
 <template>
@@ -72,15 +72,15 @@ const valueText = computed(() => `${settings.maxBees} bees${high.value ? ', abov
   margin-top: -9px;
   border-radius: 50%;
   border: 3px solid var(--ink);
-  background: #fffaf0;
+  background: var(--paper);
   box-shadow: 0 2px 0 rgba(91, 58, 36, 0.25);
 }
 .slider input[type='range']::-moz-range-thumb {
-  width: 20px;
-  height: 20px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   border: 3px solid var(--ink);
-  background: #fffaf0;
+  background: var(--paper);
 }
 .slider input[type='range']:focus-visible {
   outline: 3px solid var(--honey-deep);
@@ -109,8 +109,8 @@ const valueText = computed(() => `${settings.maxBees} bees${high.value ? ', abov
 .high .hint {
   padding: 6px 10px;
   border-radius: 12px;
-  background: #fff1e0;
-  border: 2px solid #f3c9a0;
+  background: var(--paper-2);
+  border: 2px solid var(--honey-deep);
   color: var(--ink);
 }
 .reco {
@@ -134,8 +134,8 @@ const valueText = computed(() => `${settings.maxBees} bees${high.value ? ', abov
     margin-top: -12px;
   }
   .slider input[type='range']::-moz-range-thumb {
-    width: 26px;
-    height: 26px;
+    width: 32px;
+    height: 32px;
   }
 }
 @media (max-width: 420px) {

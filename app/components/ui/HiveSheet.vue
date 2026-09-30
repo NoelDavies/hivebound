@@ -103,7 +103,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey, true))
       <header>
         <h2 :id="`sheet-${sheet}`">
           {{ sheet === 'colony' ? 'Colony' : 'Upgrades' }}
-          <span v-if="sheet === 'colony'" class="sub">{{ colony.bees.length }} / {{ colony.capacity }} beds filled</span>
+          <span v-if="sheet === 'colony'" class="sub">{{ colony.bees.length > colony.capacity ? `${colony.bees.length} bees (limit ${colony.capacity})` : `${colony.bees.length} / ${colony.capacity} beds filled` }}</span>
         </h2>
         <button class="close" :aria-label="`Close ${sheet}`" @click="close">
           <UiIcon name="close" />

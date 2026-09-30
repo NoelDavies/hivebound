@@ -110,9 +110,9 @@ export const useColony = defineStore('colony', {
       const rooms = Object.values(hive.cells).filter(c => c.building === 'room').length
       return BASE_HOUSING + rooms * (BUILDINGS.room.housing ?? 0)
     },
-    /** The player's limit is a ceiling on Bee Room growth; it never drops below the starting beds. */
+    /** The player's limit is a ceiling on Bee Room growth (the limit is never below the starting beds). */
     capacity(): number {
-      return Math.max(BASE_HOUSING, Math.min(useSettings().maxBees, this.roomCapacity))
+      return Math.min(useSettings().maxBees, this.roomCapacity)
     },
     /** True when the bee limit, not the Bee Rooms, is what stops the colony growing. */
     atBeeLimit(): boolean {
@@ -191,7 +191,9 @@ export const useColony = defineStore('colony', {
           ? 'There is no room at home yet. Build a Bee Room in the hive first.'
           : limit >= MAX_BEES_LIMIT
             ? 'The hive is as full as it can be. What a big family!'
-            : `You've reached your bee limit of ${limit}. You can raise it in Settings.`
+            : this.roomCapacity === limit
+              ? `You've reached your bee limit of ${limit}. Raise it in Settings and build a Bee Room for more beds.`
+              : `You've reached your bee limit of ${limit}. You can raise it in Settings.`
         game.toast(msg)
         game.announce(msg)
         return false
