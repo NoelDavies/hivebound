@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { MAX_WORKERS, type ColonyBee, useColony, workCell } from '~/stores/colony'
+import { MAX_WORKERS, type BeeJob, type ColonyBee, gatherJob, useColony, workCell } from '~/stores/colony'
 import { useGame } from '~/stores/game'
 import { useHive } from '~/stores/hive'
 import { ALL_RESOURCES, type Amounts, BUILDINGS, RAW_RESOURCES, RESOURCE_INFO, type RawResource, UPGRADES, UPGRADE_LIST } from '~/utils/resources'
@@ -26,6 +26,48 @@ onBeforeUnmount(() => clearInterval(timer))
 
 /* ---------------- colony ---------------- */
 const jobs: { v: RawResource | null, label: string }[] = [...RAW_RESOURCES.map(r => ({ v: r as RawResource, label: RESOURCE_INFO[r].name })), { v: null, label: 'Rest' }]
+
+/* Filter chips: a job per bee-card button, plus "At a building" and "All". */
+type FilterKey = 'all' | 'rest' | 'cell' | RawResource
+const filterChips: { key: FilterKey, label: string, icon?: RawResource }[] = [
+  { key: 'all', label: 'All' },
+  ...RAW_RESOURCES.map(r => ({ key: r as FilterKey, label: RESOURCE_INFO[r].name, icon: r as RawResource })),
+  { key: 'rest', label: 'Rest' },
+  { key: 'cell', label: 'At a building' },
+]
+const filterOf = (job: BeeJob): FilterKey => (!job ? 'rest' : workCell(job) ? 'cell' : gatherJob(job)!)
+const filterPick = ref<FilterKey>('all')
+const filterCounts = computed(() => {
+  const n: Record<string, number> = { all: colony.bees.length }
+  for (const b of colony.bees) n[filterOf(b.job)] = (n[filterOf(b.job)] ?? 0) + 1
+  return n
+})
+const visibleChips = computed(() => filterChips.filter(c => c.key === 'all' || filterCounts.value[c.key]))
+// A filter that runs out of bees falls back to All.
+const filter = computed<FilterKey>(() => (filterCounts.value[filterPick.value] ? filterPick.value : 'all'))
+const shownBees = computed(() => (filter.value === 'all' ? colony.bees : colony.bees.filter(b => filterOf(b.job) === filter.value)))
+const filterRow = ref<HTMLElement>()
+function onFilterKey(e: KeyboardEvent) {
+  // Keep every key off the bee; arrows and Home/End move between chips.
+  if (e.code !== 'Escape' && e.code !== 'KeyC' && e.code !== 'KeyU') e.stopPropagation()
+  const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key]
+  const list = visibleChips.value
+  const at = list.findIndex(c => c.key === filter.value)
+  const to = step ? (at + step + list.length) % list.length : e.key === 'Home' ? 0 : e.key === 'End' ? list.length - 1 : -1
+  if (to < 0) return
+  e.preventDefault()
+  filterPick.value = list[to]!.key
+  nextTick(() => filterRow.value?.querySelector<HTMLElement>('[aria-checked="true"]')?.focus())
+}
+/** Change a job; if the bee's card drops out of the filter, focus goes to the filter row instead of vanishing. */
+function assign(id: number, job: BeeJob) {
+  const el = document.activeElement
+  colony.setJob(id, job)
+  nextTick(() => {
+    if (el && !el.isConnected) filterRow.value?.querySelector<HTMLElement>('[aria-checked="true"]')?.focus()
+  })
+}
+watch(() => game.hiveSheet, () => (filterPick.value = 'all'))
 
 /** Buildings that make something, as places a helper can work ("Honey Press 2" when there are several). */
 const workplaces = computed(() => {
@@ -135,8 +177,25 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey, true))
           <p v-if="onlyBee" id="only-bee-note" class="note">
             You need at least one bee at home.
           </p>
+          <div v-if="colony.bees.length > 1" ref="filterRow" class="filters" role="radiogroup" aria-label="Show bees by job" @keydown="onFilterKey">
+            <button
+              v-for="c in visibleChips"
+              :key="c.key"
+              role="radio"
+              :aria-checked="filter === c.key"
+              :tabindex="filter === c.key ? 0 : -1"
+              :class="{ on: filter === c.key }"
+              :title="c.label"
+              @click="filterPick = c.key"
+            >
+              <ResourceIcon v-if="c.icon" :name="c.icon" />
+              <span v-else>{{ c.label }}</span>
+              <span v-if="c.icon" class="sr-only">{{ c.label }}</span>
+              <span class="count">{{ filterCounts[c.key] }}</span>
+            </button>
+          </div>
           <ul class="colony">
-            <li v-for="b in colony.bees" :key="b.id" class="friend">
+            <li v-for="b in shownBees" :key="b.id" class="friend">
               <div class="friend-head">
                 <span class="swatch" :style="{ background: SPECIES[b.species].look.colors.body, borderColor: SPECIES[b.species].look.colors.stripe }" aria-hidden="true" />
                 <span class="who"><strong>{{ b.name }}</strong> <span class="species">{{ SPECIES[b.species].name }}</span></span>
@@ -161,7 +220,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey, true))
                   :aria-checked="b.job === j.v"
                   :class="{ on: b.job === j.v, fav: j.v === SPECIES[b.species].favourite }"
                   :title="j.v === SPECIES[b.species].favourite ? `${j.label} (favourite: gathers it faster)` : j.label"
-                  @click="colony.setJob(b.id, j.v)"
+                  @click="assign(b.id, j.v)"
                 >
                   <ResourceIcon v-if="j.v" :name="j.v" />
                   <span v-else>Rest</span>
@@ -176,7 +235,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey, true))
                 :model-value="workCell(b.job)"
                 placeholder="Work at a building…"
                 :label="`Where ${b.name} works in the hive`"
-                @update:model-value="key => colony.setJob(b.id, `cell:${key}`)"
+                @update:model-value="key => assign(b.id, `cell:${key}`)"
               />
             </li>
           </ul>
@@ -375,6 +434,37 @@ h2 {
   right: 4px;
   font-size: 0.65rem;
   color: #e8553f;
+}
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.filters button {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border-radius: 999px;
+  border: 2px solid var(--line);
+  background: var(--paper-2);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+.filters button.on {
+  background: var(--honey);
+  border-color: var(--honey-deep);
+}
+.filters .count {
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+}
+.filters button.on .count {
+  color: inherit;
 }
 .work {
   margin-top: 4px;
