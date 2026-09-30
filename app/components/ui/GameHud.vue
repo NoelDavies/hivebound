@@ -388,6 +388,16 @@ function lookAround() {
   .where {
     padding: 8px 14px 10px;
   }
+  .jobs {
+    column-gap: 7px;
+  }
+  .jobs li {
+    gap: 2px;
+  }
+  .jobs .res-icon {
+    width: 14px;
+    height: 14px;
+  }
   .place {
     font-size: 1.1rem;
   }
