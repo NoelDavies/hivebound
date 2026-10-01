@@ -36,7 +36,7 @@ Stack: **Nuxt 4 · TresJS 5 · three.js r186 · Pinia 4**. The game route is cli
 | Fly one hex | `Q` `W` `E` / `A` `S` `D` (hex directions), arrow keys (← → zig-zag straight) | On-screen hex pad |
 | Fly to a tile | — | Tap/click a tile or the minimap |
 | Stop route | `Space` | — |
-| Look around (narrated) | `L` | Look button |
+| Look around (narrated) | `L` | Look button (shown with narration on) |
 | Journal | `J` | Journal button |
 | Fly home | `H` | Home button |
 | Action: enter the hive, befriend, talk to the Queen, collect, unseal, leave | `F` | The floating prompt over the tile, or tap the hive |
@@ -74,7 +74,7 @@ app/
     buildings.ts             Hive building models (press, kitchen, wax works, larder, bee room)
     goldenSparkles.ts        Glowing golden pollen spots out in the world
     beePool.ts               Pooled models for other bees (0.8× scale) + frustum check
-    geometry.ts              Rounded "cushion" hex, rings, blob shadow
+    geometry.ts              Rounded "cushion" hex, rings, hex progress track, blob shadow
   stores/
     game.ts                  Position, route queue, discovery, journal, narration, save/load
     settings.ts              Accessibility & comfort settings (persisted)
@@ -122,6 +122,7 @@ app/
 - **Befriend** one with `F`: a marker circles a ring, and you press `F` (or tap the ring) while it's inside the green arc. You get three tries; each species dances at its own speed. A soft tick plays as the marker enters the green, so it works by ear too. *Easier befriending* in Settings slows it down and widens the arc.
 - **Helpers** live in the hive. You start with 2 beds; each **Bee Room** adds 4, up to the colony size (bee limit) you choose in Settings (up to 50; 20 is recommended, and more bees can slow down less capable devices). Give each bee a job in the **Colony** page (`C` in the hive) (nectar, pollen, water, resin, or rest); they fly to the nearest explored tile with that resource, gather, bring it home to the store, and take a little rest. Each species prefers its favourite (♥) and is a bit slower than you, so exploring yourself always gathers faster.
 - **Dismiss** a bee from the Colony page (never your last one). It flies back to the meadow near the hive, where you can find and befriend it again.
+- **Rename** a helper by tapping its name on the Colony page. **Dismiss** a bee from the Colony page (never your last one): it flies back to the meadow near the hive, where you can find and befriend it again, and it keeps its name. When the hive is full and the Queen asks for a new friend, the quest card, the Colony page and the befriending prompt all say how to make room.
 - **Building jobs:** a helper can also work at a Honey Press, Bee Bread Kitchen or Wax Works (2 per building): pick "Work at a building…" on its card, or "+ Add a helper" in the building's panel. Each helper makes batches quicker (1 helper 1.5×, 2 helpers 2×) and carries every batch straight to the store, so the tray never holds things up. They hover beside the building, bustling round it while it runs.
 - Helpers keep working while the game is closed (same 8-hour cap). They're drawn smaller than your bee (0.8×) and only when on screen. Inside the hive (now radius 3), idle bees wander between cells and resting bees sleep in the Bee Room beds.
 
